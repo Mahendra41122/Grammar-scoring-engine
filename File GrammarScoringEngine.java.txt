@@ -1,0 +1,79 @@
+// File: GrammarScoringEngine.java
+
+import com.opencsv.CSVReader;
+import com.opencsv.CSVWriter;
+import org.languagetool.JLanguageTool;
+import org.languagetool.language.AmericanEnglish;
+import org.languagetool.rules.RuleMatch;
+
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.util.*;
+
+public class GrammarScoringEngine {
+
+    // Load CSV file
+    public static List<String[]> loadCSV(String filePath) throws Exception {
+        CSVReader reader = new CSVReader(new FileReader(filePath));
+        List<String[]> records = reader.readAll();
+        reader.close();
+        return records;
+    }
+
+    // Write CSV file
+    public static void writeCSV(List<String[]> data, String filePath) throws Exception {
+        CSVWriter writer = new CSVWriter(new FileWriter(filePath));
+        writer.writeAll(data);
+        writer.close();
+    }
+
+    // Count grammar errors using LanguageTool
+    public static int countGrammarErrors(JLanguageTool langTool, String text) throws Exception {
+        List<RuleMatch> matches = langTool.check(text);
+        return matches.size();
+    }
+
+    // Simple rule-based classifier
+    public static int predict(int errorCount, int threshold) {
+        return errorCount > threshold ? 1 : 0;  // 1 = Bad Grammar, 0 = Good Grammar
+    }
+
+    public static void main(String[] args) throws Exception {
+        // === Configurations ===
+        String inputCSV = "train.csv";   // Your Kaggle training/test dataset
+        String outputCSV = "submission.csv";  // Submission file name
+        int errorThreshold = 2;  // Change threshold based on EDA
+
+        // Initialize LanguageTool (Grammar checker)
+        JLanguageTool langTool = new JLanguageTool(new AmericanEnglish());
+
+        // Load dataset
+        System.out.println("Loading dataset...");
+        List<String[]> data = loadCSV(inputCSV);
+        String[] header = data.get(0);
+        data.remove(0);  // remove header
+
+        // Prepare submission output
+        List<String[]> submissionData = new ArrayList<>();
+        submissionData.add(new String[]{"id", "prediction"});  // header
+
+        System.out.println("Processing records...");
+        for (String[] row : data) {
+            String id = row[0];
+            String text = row[1];
+
+            // Count grammar errors
+            int errorCount = countGrammarErrors(langTool, text);
+
+            // Predict label based on threshold
+            int prediction = predict(errorCount, errorThreshold);
+
+            // Add to submission
+            submissionData.add(new String[]{id, String.valueOf(prediction)});
+        }
+
+        // Write submission file
+        writeCSV(submissionData, outputCSV);
+        System.out.println("Submission file created: " + outputCSV);
+    }
+}
